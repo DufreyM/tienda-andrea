@@ -1,0 +1,56 @@
+/*
+ * Variables de diseño. Todos los colores del sitio salen de aquí.
+ * Contraste verificado con `node scripts/contraste.mjs` (WCAG 2.2 AA).
+ */
+:root {
+  /* Marca «Mímate by Andrea» (tomada del logotipo) */
+  --color-bg: #fcf6f0;            /* Crema del logotipo: fondo general */
+  --color-surface: #ffffff;       /* Tarjetas, formularios */
+  --color-brand: #b96f6d;         /* Rosa empolvado del logotipo: solo texto grande (≥24 px) y adornos */
+  --color-rose-soft: #f7e6e3;     /* Rosa suave: bloques destacados, chips activos */
+  --color-primary: #9e5458;       /* Rosa profundo: botones, enlaces, foco (≥4.5:1) */
+  --color-primary-strong: #7a3840;/* Rosa profundo oscuro: hover y texto sobre rosa suave */
+  --color-sage: #55603f;          /* Oliva oscuro: «by Andrea», etiquetas informativas */
+  --color-sage-soft: #eceedf;     /* Oliva suave: fondos de etiquetas informativas */
+  --color-leaf: #8a8f5a;          /* Verde hoja del logotipo: solo ilustraciones */
+  --color-text: #2e2724;          /* Texto principal */
+  --color-text-muted: #62574f;    /* Texto secundario */
+  --color-border: #eadfd6;        /* Separadores decorativos */
+  --color-border-strong: #8c7f79; /* Bordes de campos (≥3:1) */
+
+  /* Semánticos (siempre acompañados de texto o icono) */
+  --color-success: #1e6b3a;
+  --color-success-soft: #e3f1e7;
+  --color-warning: #7a4d00;
+  --color-warning-soft: #fcf0d6;
+  --color-error: #b3261e;
+  --color-error-soft: #fbe5e3;
+
+  --focus-ring: 0 0 0 3px var(--color-surface), 0 0 0 6px var(--color-primary);
+
+  /* Tipografía */
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-body: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: clamp(1.6rem, 1.3rem + 1.4vw, 2.2rem);
+  --text-3xl: clamp(2rem, 1.5rem + 2.4vw, 3.1rem);
+
+  /* Espaciado y forma */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --shadow: 0 1px 2px rgb(43 36 34 / 6%), 0 4px 14px rgb(43 36 34 / 6%);
+  --container: 1180px;
+  --tap: 44px; /* Tamaño mínimo de objetivos táctiles */
+}
