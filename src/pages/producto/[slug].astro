@@ -1,0 +1,102 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProductDetail from '../../components/ProductDetail';
+import Icon from '../../components/Icon';
+import { publicImageUrl } from '../../lib/config';
+import { formatPrice, truncate } from '../../lib/format';
+import { getProductBySlug, getSettings } from '../../lib/server/db';
+import type { ProductDetailData } from '../../lib/types';
+
+const settings = await getSettings();
+const slug = Astro.params.slug ?? '';
+let product: ProductDetailData | null = null;
+let loadError = false;
+try {
+  product = await getProductBySlug(slug);
+} catch {
+  loadError = true;
+}
+if (loadError) Astro.response.status = 503;
+else if (!product) Astro.response.status = 404;
+
+const url = new URL(`/producto/${slug}`, Astro.url.origin).toString();
+const mainImage = product?.images[0];
+const description = product ? truncate(product.description, 155) : undefined;
+
+const jsonLd = product
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: product.description,
+      url,
+      image: product.images.map((i) => publicImageUrl(i.path)),
+      ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+      ...(product.category ? { category: product.category.name } : {}),
+      ...(product.price !== null && product.currency
+        ? {
+            offers: {
+              '@type': 'Offer',
+              price: Number(product.price).toFixed(2),
+              priceCurrency: product.currency,
+              availability:
+                product.availability === 'disponible' ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+              url,
+            },
+          }
+        : {}),
+    }
+  : null;
+const priceText = product ? formatPrice(product.price, product.currency) : null;
+---
+
+<Base
+  settings={settings}
+  current="catalogo"
+  title={product ? product.name : loadError ? 'Error al cargar' : 'Producto no disponible'}
+  description={description}
+  image={mainImage ? publicImageUrl(mainImage.path) : null}
+  imageAlt={mainImage?.alt}
+  type={product ? 'product' : 'website'}
+  noindex={!product}
+>
+  {jsonLd && <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />}
+  {priceText && <meta slot="head" property="product:price:amount" content={Number(product!.price).toFixed(2)} />}
+  {priceText && <meta slot="head" property="product:price:currency" content={product!.currency!} />}
+
+  <div class="section container">
+    <nav class="breadcrumb" aria-label="Ruta de navegación">
+      <a href="/catalogo" data-back-to-catalog><Icon name="arrowLeft" size={16} /> Volver al catálogo</a>
+    </nav>
+
+    {
+      product ? (
+        <ProductDetail client:visible product={product} settings={{ whatsapp: settings.whatsapp, business_name: settings.business_name }} url={url} />
+      ) : loadError ? (
+        <div class="notice notice--error" role="alert">
+          <Icon name="alert" />
+          <p>No pudimos cargar este producto. Revisa tu conexión e <a href={`/producto/${slug}`}>intenta de nuevo</a>.</p>
+        </div>
+      ) : (
+        <div class="empty">
+          <span class="empty__icon"><Icon name="box" size={36} /></span>
+          <h1>Este producto no está disponible</h1>
+          <p>Puede que ya no forme parte del catálogo o que el enlace esté incompleto.</p>
+          <div class="actions">
+            <a class="btn btn--primary" href="/catalogo">Ver el catálogo</a>
+            <a class="btn btn--ghost" href="/contacto">Consultar</a>
+          </div>
+        </div>
+      )
+    }
+  </div>
+</Base>
+
+<script>
+  // Si se llegó desde el catálogo, volver conserva la búsqueda y el filtro.
+  const back = document.querySelector<HTMLAnchorElement>('[data-back-to-catalog]');
+  try {
+    const last = sessionStorage.getItem('ultimoCatalogo');
+    if (back && last && last.startsWith('/catalogo')) back.href = last;
+  } catch {}
+</script>

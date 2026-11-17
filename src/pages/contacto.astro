@@ -1,0 +1,48 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon';
+import { getSettings } from '../lib/server/db';
+import { whatsappLink } from '../lib/format';
+
+const settings = await getSettings();
+const wa = whatsappLink(settings, 'Hola, quiero hacer una consulta sobre sus productos.');
+const channels = [
+  wa && { href: wa, label: 'WhatsApp', detail: 'Escríbenos para consultar precio y disponibilidad', icon: 'whatsapp', external: true },
+  settings.instagram_url && { href: settings.instagram_url, label: 'Instagram', detail: 'Mira nuestras novedades', icon: 'instagram', external: true },
+  settings.facebook_url && { href: settings.facebook_url, label: 'Facebook', detail: 'Síguenos', icon: 'facebook', external: true },
+  settings.tiktok_url && { href: settings.tiktok_url, label: 'TikTok', detail: 'Videos y recomendaciones', icon: 'tiktok', external: true },
+  settings.email && { href: `mailto:${settings.email}`, label: 'Correo', detail: settings.email, icon: 'mail', external: false },
+].filter(Boolean) as { href: string; label: string; detail: string; icon: 'whatsapp' | 'instagram' | 'facebook' | 'tiktok' | 'mail'; external: boolean }[];
+---
+
+<Base settings={settings} current="contacto" title="Contacto" description={`Medios de contacto de ${settings.business_name}.`}>
+  <section class="section container" aria-labelledby="titulo-contacto">
+    <h1 id="titulo-contacto">Contacto</h1>
+    {settings.about ? <div class="prose">{settings.about.split(/\n{2,}/).map((p) => <p>{p}</p>)}</div> : <p class="lead">Consulta precio, disponibilidad o cualquier duda sobre nuestros productos.</p>}
+
+    {
+      channels.length > 0 ? (
+        <ul class="contact-list">
+          {channels.map((c) => (
+            <li>
+              <a href={c.href} target={c.external ? '_blank' : undefined} rel={c.external ? 'noopener' : undefined}>
+                <Icon name={c.icon} size={24} />
+                <span>
+                  {c.label}
+                  <small>{c.detail}</small>
+                </span>
+                {c.external && <span class="visually-hidden">(se abre en otra pestaña)</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div class="notice notice--info">
+          <Icon name="info" />
+          <p>Pronto publicaremos nuestros medios de contacto.</p>
+        </div>
+      )
+    }
+    <p class="muted">Este sitio es un catálogo informativo: no se realizan pagos ni pedidos en línea.</p>
+  </section>
+</Base>

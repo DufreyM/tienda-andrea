@@ -1,0 +1,124 @@
+---
+import '../styles/global.css';
+import '../styles/public.css';
+import '../styles/detail.css';
+import Icon from '../components/Icon';
+import Wordmark from '../components/Wordmark';
+import { publicImageUrl } from '../lib/config';
+import { whatsappLink } from '../lib/format';
+import type { Settings } from '../lib/types';
+
+interface Props {
+  settings: Settings;
+  title?: string;
+  description?: string;
+  image?: string | null;
+  imageAlt?: string;
+  type?: 'website' | 'product';
+  noindex?: boolean;
+  current?: 'inicio' | 'catalogo' | 'contacto';
+}
+
+const { settings, title, description, image, imageAlt, type = 'website', noindex = false, current } = Astro.props;
+const siteName = settings.business_name;
+const fullTitle = title ? `${title} · ${siteName}` : siteName;
+const metaDescription =
+  description ?? settings.tagline ?? `Catálogo de productos de belleza y cuidado personal de ${siteName}.`;
+const canonical = new URL(Astro.url.pathname + Astro.url.search, Astro.url.origin).toString();
+const logo = publicImageUrl(settings.logo_path);
+const wa = whatsappLink(settings);
+const socials = [
+  wa && { href: wa, label: 'WhatsApp', icon: 'whatsapp' },
+  settings.instagram_url && { href: settings.instagram_url, label: 'Instagram', icon: 'instagram' },
+  settings.facebook_url && { href: settings.facebook_url, label: 'Facebook', icon: 'facebook' },
+  settings.tiktok_url && { href: settings.tiktok_url, label: 'TikTok', icon: 'tiktok' },
+].filter(Boolean) as { href: string; label: string; icon: 'whatsapp' | 'instagram' | 'facebook' | 'tiktok' }[];
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={metaDescription} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#fcf6f0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap.xml" />
+
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content="es_LA" />
+    <meta property="og:type" content={type === 'product' ? 'product' : 'website'} />
+    <meta property="og:title" content={title ?? siteName} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:url" content={canonical} />
+    {image && <meta property="og:image" content={image} />}
+    {image && imageAlt && <meta property="og:image:alt" content={imageAlt} />}
+    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+    <slot name="head" />
+
+    <script is:inline>
+      // Muestra un marcador si una foto de producto no carga (también en páginas sin JavaScript de Preact).
+      document.addEventListener(
+        'error',
+        function (e) {
+          var t = e.target;
+          if (!(t instanceof HTMLImageElement) || !t.hasAttribute('data-product-img') || t.closest('astro-island')) return;
+          var ph = document.createElement('div');
+          ph.className = 'img-placeholder';
+          ph.setAttribute('role', 'img');
+          ph.setAttribute('aria-label', (t.alt || 'Producto') + ' (imagen no disponible)');
+          ph.innerHTML = '<span aria-hidden="true">Imagen no disponible</span>';
+          t.replaceWith(ph);
+        },
+        true,
+      );
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <a class="brand" href="/" aria-label={`${siteName}, ir al inicio`}>
+          {logo ? <img src={logo} alt="" width="140" height="40" /> : null}
+          <Wordmark name={siteName} />
+        </a>
+        <nav class="nav" aria-label="Principal">
+          <ul>
+            <li><a href="/" aria-current={current === 'inicio' ? 'page' : undefined}>Inicio</a></li>
+            <li><a href="/catalogo" aria-current={current === 'catalogo' ? 'page' : undefined}>Catálogo</a></li>
+            <li><a href="/contacto" aria-current={current === 'contacto' ? 'page' : undefined}>Contacto</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="contenido" tabindex="-1">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container site-footer__inner">
+        <p>© {year} {siteName}. Catálogo informativo: consulta disponibilidad y precio antes de comprar.</p>
+        {
+          socials.length > 0 && (
+            <ul class="social" aria-label="Redes y contacto">
+              {socials.map((s) => (
+                <li>
+                  <a href={s.href} target="_blank" rel="noopener">
+                    <Icon name={s.icon} size={18} />
+                    {s.label}
+                    <span class="visually-hidden">(se abre en otra pestaña)</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </footer>
+  </body>
+</html>

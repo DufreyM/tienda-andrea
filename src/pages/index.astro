@@ -1,0 +1,102 @@
+---
+import Base from '../layouts/Base.astro';
+import ProductCard from '../components/ProductCard';
+import Icon from '../components/Icon';
+import Wordmark from '../components/Wordmark';
+import { getPublicCategories, getSettings, searchCatalog } from '../lib/server/db';
+import { whatsappLink } from '../lib/format';
+import type { ProductSummary, PublicCategory } from '../lib/types';
+
+const settings = await getSettings();
+let featured: ProductSummary[] = [];
+let categories: PublicCategory[] = [];
+let loadError = false;
+try {
+  const [feat, cats] = await Promise.all([
+    searchCatalog({ featuredOnly: true, pageSize: 8 }),
+    getPublicCategories(),
+  ]);
+  featured = feat.items;
+  categories = cats.filter((c) => c.product_count > 0);
+  // Sin destacados, se muestran los primeros productos publicados.
+  if (featured.length === 0) featured = (await searchCatalog({ pageSize: 8 })).items;
+} catch {
+  loadError = true;
+  Astro.response.status = 503;
+}
+const wa = whatsappLink(settings, 'Hola, quiero hacer una consulta sobre sus productos.');
+---
+
+<Base settings={settings} current="inicio">
+  <section class="hero">
+    <div class="container hero__inner">
+      <h1 class="hero__title"><Wordmark name={settings.business_name} variant="hero" sprig /></h1>
+      {settings.tagline && <p class="hero__tagline">{settings.tagline}</p>}
+      <p class="lead">
+        Productos de belleza y cuidado personal. Explora el catálogo, revisa cada presentación y consúltanos antes de comprar.
+      </p>
+      <div class="actions">
+        <a class="btn btn--primary" href="/catalogo">Ver catálogo <Icon name="arrowRight" size={18} /></a>
+        {wa && <a class="btn btn--secondary" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={18} /> Escríbenos<span class="visually-hidden"> (se abre en otra pestaña)</span></a>}
+      </div>
+    </div>
+  </section>
+
+  <section class="section container" aria-labelledby="destacados">
+    <div class="section__head">
+      <h2 id="destacados">Destacados</h2>
+      <a href="/catalogo">Ver todos los productos</a>
+    </div>
+    {
+      loadError ? (
+        <div class="notice notice--error" role="alert">
+          <Icon name="alert" />
+          <p>No pudimos cargar los productos en este momento. <a href="/">Intenta de nuevo</a> en unos minutos.</p>
+        </div>
+      ) : featured.length === 0 ? (
+        <div class="empty">
+          <span class="empty__icon"><Icon name="box" size={36} /></span>
+          <h3>Pronto verás nuestros productos aquí</h3>
+          <p>Estamos preparando el catálogo. Mientras tanto, puedes escribirnos para consultar.</p>
+          <div class="actions"><a class="btn btn--secondary" href="/contacto">Ir a contacto</a></div>
+        </div>
+      ) : (
+        <ul class="grid">
+          {featured.map((p, i) => (
+            <li><ProductCard product={p} eager={i < 2} /></li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+
+  {
+    categories.length > 0 && (
+      <section class="section--tight container" aria-labelledby="categorias">
+        <div class="section__head"><h2 id="categorias">Categorías</h2></div>
+        <ul class="category-links">
+          {categories.map((c) => (
+            <li>
+              <a href={`/catalogo?categoria=${c.slug}`}>
+                {c.name}
+                <small>{c.product_count} {c.product_count === 1 ? 'producto' : 'productos'}</small>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  <section class="section container" aria-labelledby="contacto-titulo">
+    <div class="contact-band">
+      <div>
+        <h2 id="contacto-titulo">¿Tienes dudas sobre un producto?</h2>
+        <p>Consulta disponibilidad, precio y cuál opción es mejor para ti.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn--primary" href="/contacto">Ver medios de contacto</a>
+      </div>
+    </div>
+  </section>
+</Base>

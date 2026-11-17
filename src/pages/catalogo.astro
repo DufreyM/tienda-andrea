@@ -1,0 +1,173 @@
+---
+import Base from '../layouts/Base.astro';
+import ProductCard from '../components/ProductCard';
+import Icon from '../components/Icon';
+import { PAGE_SIZE } from '../lib/config';
+import { getPublicCategories, getSettings, searchCatalog } from '../lib/server/db';
+import type { ProductSummary, PublicCategory } from '../lib/types';
+
+const settings = await getSettings();
+const params = Astro.url.searchParams;
+const q = (params.get('q') ?? '').trim().slice(0, 80);
+const categorySlug = (params.get('categoria') ?? '').trim();
+const page = Math.max(1, Number.parseInt(params.get('pagina') ?? '1', 10) || 1);
+
+let items: ProductSummary[] = [];
+let total = 0;
+let categories: PublicCategory[] = [];
+let loadError = false;
+try {
+  const [result, cats] = await Promise.all([
+    searchCatalog({ q, category: categorySlug, page }),
+    getPublicCategories(),
+  ]);
+  items = result.items;
+  total = result.total;
+  categories = cats.filter((c) => c.product_count > 0 || c.slug === categorySlug);
+} catch {
+  loadError = true;
+  Astro.response.status = 503;
+}
+
+const activeCategory = categories.find((c) => c.slug === categorySlug);
+const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+const hasFilters = Boolean(q || categorySlug);
+
+function link(overrides: Record<string, string | number | null>) {
+  const next = new URLSearchParams();
+  const merged: Record<string, string | number | null> = { q: q || null, categoria: categorySlug || null, pagina: null, ...overrides };
+  for (const [k, v] of Object.entries(merged)) if (v !== null && v !== '' && !(k === 'pagina' && v === 1)) next.set(k, String(v));
+  const s = next.toString();
+  return s ? `/catalogo?${s}` : '/catalogo';
+}
+
+const titleParts = ['Catálogo'];
+if (activeCategory) titleParts.push(activeCategory.name);
+if (page > 1) titleParts.push(`página ${page}`);
+---
+
+<Base
+  settings={settings}
+  current="catalogo"
+  title={titleParts.join(' · ')}
+  description={activeCategory ? `${activeCategory.name} en el catálogo de ${settings.business_name}.` : undefined}
+  noindex={Boolean(q)}
+>
+  <section class="section container" aria-labelledby="titulo-catalogo">
+    <h1 id="titulo-catalogo">{activeCategory ? activeCategory.name : 'Catálogo'}</h1>
+
+    <div class="catalog-tools">
+      <form class="search" role="search" action="/catalogo" method="get" data-search-form>
+        <label class="visually-hidden" for="buscar">Buscar por nombre o marca</label>
+        <input
+          class="input"
+          id="buscar"
+          type="search"
+          name="q"
+          value={q}
+          maxlength="80"
+          placeholder="Nombre o marca"
+          autocomplete="off"
+          enterkeyhint="search"
+        />
+        {categorySlug && <input type="hidden" name="categoria" value={categorySlug} />}
+        <button class="btn btn--primary" type="submit">
+          <Icon name="search" size={18} /><span>Buscar</span>
+        </button>
+      </form>
+
+      {
+        categories.length > 0 && (
+          <nav aria-label="Filtrar por categoría">
+            <ul class="chips">
+              <li>
+                <a class="chip" href={link({ categoria: null })} aria-current={!categorySlug ? 'true' : undefined}>
+                  {!categorySlug && <Icon name="check" size={14} />}Todas
+                </a>
+              </li>
+              {categories.map((c) => (
+                <li>
+                  <a class="chip" href={link({ categoria: c.slug })} aria-current={c.slug === categorySlug ? 'true' : undefined}>
+                    {c.slug === categorySlug && <Icon name="check" size={14} />}
+                    {c.name} <span class="chip__count">({c.product_count})</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+    </div>
+
+    <div aria-live="polite" id="resultados">
+      {
+        loadError ? (
+          <div class="notice notice--error" role="alert">
+            <Icon name="alert" />
+            <p>
+              No pudimos cargar el catálogo. Revisa tu conexión e <a href={link({})}>intenta de nuevo</a>.
+            </p>
+          </div>
+        ) : items.length === 0 && hasFilters ? (
+          <div class="empty">
+            <span class="empty__icon"><Icon name="search" size={36} /></span>
+            <h2>No encontramos productos</h2>
+            <p>
+              {q ? <>No hay resultados para «{q}»{activeCategory ? ` en ${activeCategory.name}` : ''}.</> : 'No hay productos en esta categoría por ahora.'}{' '}
+              Prueba con otra palabra o revisa todas las categorías.
+            </p>
+            <div class="actions">
+              <a class="btn btn--secondary" href="/catalogo">Ver todo el catálogo</a>
+            </div>
+          </div>
+        ) : items.length === 0 ? (
+          <div class="empty">
+            <span class="empty__icon"><Icon name="box" size={36} /></span>
+            <h2>El catálogo está vacío por ahora</h2>
+            <p>Pronto publicaremos nuestros productos. Puedes escribirnos para consultar.</p>
+            <div class="actions"><a class="btn btn--secondary" href="/contacto">Ir a contacto</a></div>
+          </div>
+        ) : (
+          <>
+            <div class="results-info">
+              <p>
+                {total} {total === 1 ? 'producto' : 'productos'}
+                {q && <> para «{q}»</>}
+                {totalPages > 1 && <> · página {page} de {totalPages}</>}
+              </p>
+              {hasFilters && <a href="/catalogo">Quitar filtros</a>}
+            </div>
+            <ul class="grid">
+              {items.map((p, i) => (
+                <li><ProductCard product={p} eager={i < 2} headingLevel="h2" /></li>
+              ))}
+            </ul>
+            {totalPages > 1 && (
+              <nav class="pagination" aria-label="Páginas del catálogo">
+                {page > 1 && <a class="btn btn--ghost btn--sm" href={link({ pagina: page - 1 })} rel="prev"><Icon name="arrowLeft" size={16} /> Anterior</a>}
+                <span class="current" aria-current="page">Página {page} de {totalPages}</span>
+                {page < totalPages && <a class="btn btn--ghost btn--sm" href={link({ pagina: page + 1 })} rel="next">Siguiente <Icon name="arrowRight" size={16} /></a>}
+              </nav>
+            )}
+          </>
+        )
+      }
+    </div>
+  </section>
+</Base>
+
+<script>
+  // Indica que la búsqueda está en curso (visibilidad del estado).
+  const form = document.querySelector<HTMLFormElement>('[data-search-form]');
+  form?.addEventListener('submit', () => {
+    const btn = form.querySelector('button');
+    if (!btn) return;
+    btn.setAttribute('aria-disabled', 'true');
+    btn.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Buscando…</span>';
+    document.getElementById('resultados')?.setAttribute('aria-busy', 'true');
+  });
+  // Recuerda la búsqueda para el enlace «Volver al catálogo» del detalle.
+  try {
+    sessionStorage.setItem('ultimoCatalogo', location.pathname + location.search);
+  } catch {}
+</script>
