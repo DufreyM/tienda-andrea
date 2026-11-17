@@ -3,8 +3,14 @@
   display: grid;
   gap: var(--space-5);
 }
+/* En pantallas anchas la foto se limita por la altura de la ventana para que foto, miniaturas y
+   texto quepan sin desplazarse; el texto ocupa el resto del ancho. */
 @media (min-width: 860px) {
-  .detail { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: var(--space-7); align-items: start; }
+  .detail { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-7); align-items: start; }
+  .detail__gallery { width: min(480px, 44vw, max(300px, calc(100vh - 330px))); }
+  @supports (height: 100svh) {
+    .detail__gallery { width: min(480px, 44vw, max(300px, calc(100svh - 330px))); }
+  }
 }
 .detail__main {
   aspect-ratio: 1 / 1;
