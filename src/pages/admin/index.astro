@@ -1,0 +1,7 @@
+---
+import Admin from '../../layouts/Admin.astro';
+// Página estática: el contenido lo carga el navegador con la sesión del administrador.
+export const prerender = true;
+---
+
+<Admin page="productos" title="Productos" />
