@@ -1,0 +1,30 @@
+# Evita que el proyecto gratuito de Supabase se pause por inactividad (se pausa tras
+# 1 semana sin actividad en la base de datos). Cada 3 días hace una consulta de solo
+# lectura al catálogo público. No escribe datos ni usa claves secretas.
+#
+# Para activarlo: en GitHub, Settings > Secrets and variables > Actions > Variables,
+# crea SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY (son valores públicos).
+name: Mantener Supabase activo
+
+on:
+  schedule:
+    - cron: '17 14 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: ${{ vars.SUPABASE_URL != '' }}
+    steps:
+      - name: Consultar categorías públicas
+        env:
+          URL: ${{ vars.SUPABASE_URL }}
+          KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/rest/v1/rpc/public_categories" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}')
+          echo "Respuesta: $code"
+          test "$code" = "200"
